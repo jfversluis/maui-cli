@@ -5,6 +5,33 @@ All notable changes to the MAUI CLI will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`maui check` command** - Comprehensive .NET MAUI environment diagnostics
+  - Verifies .NET SDK installation and version
+  - Checks MAUI workloads for all platforms (Android, iOS, Windows, Mac Catalyst)
+  - Validates platform-specific requirements:
+    - Java JDK for Android development
+    - Android SDK location and version
+    - Xcode for iOS/Mac development (macOS only)
+    - Windows SDK for Windows development
+  - Provides actionable recommendations with fix commands
+  - Supports both .NET 9 and .NET 10+ workload naming conventions
+  - Remote manifest system for updateable requirements (inspired by dotnet-maui-check)
+  - Platform filtering with `--platform` flag
+  - Verbose mode with `--verbose` flag
+  - Custom manifest URLs with `--manifest` flag
+  - Beautiful table output with status indicators
+- **Manifest Service** - Downloads and caches requirements manifest from `https://aka.ms/dotnet-maui-check-manifest`
+- **Embedded fallback manifest** - Works offline with default requirements
+- **JSON-based workload detection** - Uses `dotnet workload list --format json` for accurate detection
+- Comprehensive test suite for check command (41 tests covering all scenarios)
+
+### Fixed
+- .NET 10+ workload naming compatibility (now checks for both `android` and `maui-android` conventions)
+- Moq compatibility with internal interfaces (added `DynamicProxyGenAssembly2` to `InternalsVisibleTo`)
+
 ## [1.0.0] - 2025-11-13
 
 ### Added

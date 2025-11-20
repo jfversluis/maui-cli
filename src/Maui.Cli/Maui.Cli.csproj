@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Maui.Cli.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,6 +32,10 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="Semver" Version="2.3.0" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="default-manifest.json" />
   </ItemGroup>
 
 </Project>

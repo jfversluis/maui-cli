@@ -1,0 +1,81 @@
+{
+  "check": {
+    "toolVersion": "1.0.0",
+    "variables": {
+      "DOTNET_SDK_VERSION": "8.0.0",
+      "OPENJDK_VERSION": "17.0",
+      "MIN_ANDROID_API": "21",
+      "TARGET_ANDROID_API": "34"
+    },
+    "openjdk": {
+      "version": "17.0",
+      "minimumVersion": "11.0",
+      "requireExact": false,
+      "urls": {
+        "win-x64": "https://aka.ms/download-jdk/microsoft-jdk-17.0.12-windows-x64.msi",
+        "osx-x64": "https://aka.ms/download-jdk/microsoft-jdk-17.0.12-macos-x64.pkg",
+        "osx-arm64": "https://aka.ms/download-jdk/microsoft-jdk-17.0.12-macos-aarch64.pkg"
+      }
+    },
+    "xcode": {
+      "minimumVersion": "15",
+      "minimumVersionName": "15.0",
+      "exactVersion": null,
+      "exactVersionName": null
+    },
+    "android": {
+      "packages": [
+        {
+          "path": "platforms;android-34",
+          "version": "1",
+          "arch": null
+        },
+        {
+          "path": "platforms;android-33",
+          "version": "1",
+          "arch": null
+        },
+        {
+          "path": "build-tools;34.0.0",
+          "version": "34.0.0",
+          "arch": null
+        },
+        {
+          "path": "platform-tools",
+          "version": "34.0.0",
+          "arch": null
+        },
+        {
+          "path": "cmdline-tools;latest",
+          "version": "11.0",
+          "arch": null
+        }
+      ],
+      "emulators": []
+    },
+    "dotnet": {
+      "sdks": [
+        {
+          "version": "8.0.0",
+          "requireExact": false,
+          "urls": {},
+          "packageSources": [],
+          "workloadRollback": null,
+          "workloadIds": [
+            "maui",
+            "android",
+            "ios",
+            "maccatalyst",
+            "macos",
+            "maccatalyst"
+          ]
+        }
+      ]
+    },
+    "vswin": {
+      "minimumVersion": "17.8",
+      "exactVersion": null,
+      "exactVersionName": null
+    }
+  }
+}

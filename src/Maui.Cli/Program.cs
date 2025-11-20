@@ -30,6 +30,8 @@ builder.Services.AddSingleton(context);
 builder.Services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
 builder.Services.AddHttpClient<IGitHubArtifactService, GitHubArtifactService>();
 builder.Services.AddSingleton<INuGetService, NuGetService>();
+builder.Services.AddHttpClient<IManifestService, ManifestService>();
+builder.Services.AddSingleton<IEnvironmentCheckService, EnvironmentCheckService>();
 
 var app = builder.Build();
 
@@ -48,7 +50,12 @@ var applyPrCommand = new ApplyPRCommand(
     app.Services.GetRequiredService<IAnsiConsole>(),
     context);
 
+var checkCommand = new CheckCommand(
+    app.Services.GetRequiredService<IEnvironmentCheckService>(),
+    app.Services.GetRequiredService<IAnsiConsole>());
+
 rootCommand.AddCommand(applyPrCommand);
+rootCommand.AddCommand(checkCommand);
 
 // Execute
 var exitCode = await rootCommand.InvokeAsync(args);
