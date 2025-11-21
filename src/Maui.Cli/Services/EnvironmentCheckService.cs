@@ -10,14 +10,19 @@ namespace Maui.Cli.Services;
 internal sealed class EnvironmentCheckService : IEnvironmentCheckService
 {
     private readonly IManifestService _manifestService;
+    private readonly IWorkloadDependencyService _workloadDependencyService;
     private readonly bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
     private readonly bool _isMacOS = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
     private readonly bool _isLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
     private CheckManifest? _manifest;
+    private IReadOnlyList<WorkloadDependencyInfo>? _workloadDependencies;
 
-    public EnvironmentCheckService(IManifestService manifestService)
+    public EnvironmentCheckService(
+        IManifestService manifestService,
+        IWorkloadDependencyService workloadDependencyService)
     {
         _manifestService = manifestService;
+        _workloadDependencyService = workloadDependencyService;
     }
 
     public async Task<IReadOnlyList<CheckResult>> CheckEnvironmentAsync(string? platform, bool verbose, string? manifestUrl = null)
@@ -26,6 +31,9 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
 
         // Load manifest (from URL if provided, otherwise use default/embedded)
         _manifest = await _manifestService.LoadManifestAsync(manifestUrl);
+
+        // Load workload dependencies from local SDK
+        _workloadDependencies = await _workloadDependencyService.GetAllWorkloadDependenciesAsync();
 
         // Check .NET SDK
         results.Add(await CheckDotNetSdkAsync(verbose));
@@ -363,11 +371,38 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
     {
         var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
         
-        // Get required JDK version from manifest
-        var requiredVersion = "17.0";
-        var requiredMajorVersion = 17;
+        // Get required JDK version from workload dependencies (source of truth)
+        var androidWorkload = _workloadDependencies?.FirstOrDefault(w => 
+            w.WorkloadName.Contains("android", StringComparison.OrdinalIgnoreCase));
         
-        if (_manifest?.Check?.OpenJdk?.Version != null)
+        string requiredVersion = "17.0";
+        int requiredMajorVersion = 17;
+        int maxMajorVersion = 21; // Default max
+        string? recommendedVersion = null;
+        
+        if (androidWorkload != null)
+        {
+            // Parse version range like "[17.0,22.0)" 
+            if (!string.IsNullOrEmpty(androidWorkload.JdkVersion))
+            {
+                var rangeMatch = Regex.Match(androidWorkload.JdkVersion, @"\[?([\d.]+),\s*([\d.]+)\)?");
+                if (rangeMatch.Success)
+                {
+                    requiredVersion = rangeMatch.Groups[1].Value;
+                    if (int.TryParse(rangeMatch.Groups[1].Value.Split('.')[0], out var minMajor))
+                    {
+                        requiredMajorVersion = minMajor;
+                    }
+                    if (int.TryParse(rangeMatch.Groups[2].Value.Split('.')[0], out var maxMajor))
+                    {
+                        maxMajorVersion = maxMajor;
+                    }
+                }
+            }
+            recommendedVersion = androidWorkload.JdkRecommendedVersion;
+        }
+        // Fallback to manifest
+        else if (_manifest?.Check?.OpenJdk?.Version != null)
         {
             requiredVersion = _manifest.Check.OpenJdk.Version;
             var parts = requiredVersion.Split('.');
@@ -416,13 +451,33 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                 
                 if (versionMatch.Success && int.TryParse(versionMatch.Groups[1].Value, out var majorVersion))
                 {
-                    if (majorVersion >= requiredMajorVersion)
+                    var details = verbose ? new Dictionary<string, string>
+                    {
+                        ["Version"] = majorVersion.ToString(),
+                        ["JAVA_HOME"] = javaHome,
+                        ["RequiredRange"] = androidWorkload?.JdkVersion ?? $"[{requiredVersion},)",
+                        ["RecommendedVersion"] = recommendedVersion ?? requiredVersion
+                    } : null;
+                    
+                    if (majorVersion >= requiredMajorVersion && majorVersion < maxMajorVersion)
                     {
                         return new CheckResult
                         {
                             Name = "Java JDK",
                             Status = CheckStatus.Ok,
-                            Message = $"Version {majorVersion} (JAVA_HOME: {javaHome})"
+                            Message = $"Version {majorVersion} (JAVA_HOME: {javaHome})",
+                            Details = details
+                        };
+                    }
+                    else if (majorVersion >= maxMajorVersion)
+                    {
+                        return new CheckResult
+                        {
+                            Name = "Java JDK",
+                            Status = CheckStatus.Warning,
+                            Message = $"Version {majorVersion} detected. JDK {requiredMajorVersion}-{maxMajorVersion - 1} required.",
+                            Recommendation = $"Install JDK {recommendedVersion ?? requiredVersion} from https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies",
+                            Details = details
                         };
                     }
                     else if (majorVersion >= 11)
@@ -432,7 +487,8 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                             Name = "Java JDK",
                             Status = CheckStatus.Warning,
                             Message = $"Version {majorVersion} detected. JDK {requiredMajorVersion}+ recommended for best compatibility.",
-                            Recommendation = $"Install JDK {requiredVersion} or later from https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies"
+                            Recommendation = $"Install JDK {recommendedVersion ?? requiredVersion} from https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies",
+                            Details = details
                         };
                     }
                     else
@@ -442,7 +498,8 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                             Name = "Java JDK",
                             Status = CheckStatus.Error,
                             Message = $"Version {majorVersion} detected. JDK {requiredMajorVersion}+ required.",
-                            Recommendation = $"Install JDK {requiredVersion} or later from https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies"
+                            Recommendation = $"Install JDK {recommendedVersion ?? requiredVersion} from https://learn.microsoft.com/dotnet/android/getting-started/installation/dependencies",
+                            Details = details
                         };
                     }
                 }
@@ -629,43 +686,64 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                     var parts = versionString.Split('.');
                     if (parts.Length > 0 && int.TryParse(parts[0], out var majorVersion))
                     {
-                        // Get minimum version from manifest
-                        var minVersion = 15; // Default
-                        var minVersionName = "15.0";
+                        // Get requirements from workload dependencies first (source of truth)
+                        var iosWorkload = _workloadDependencies?.FirstOrDefault(w => 
+                            w.WorkloadName.Contains("ios", StringComparison.OrdinalIgnoreCase) && 
+                            !w.WorkloadName.Contains("tvos", StringComparison.OrdinalIgnoreCase));
                         
-                        if (_manifest?.Check?.Xcode != null)
+                        string? requiredVersion = null;
+                        string? recommendedVersion = null;
+                        
+                        if (iosWorkload != null)
                         {
-                            if (!string.IsNullOrEmpty(_manifest.Check.Xcode.MinimumVersion) &&
-                                int.TryParse(_manifest.Check.Xcode.MinimumVersion, out var manifestMin))
+                            requiredVersion = iosWorkload.XcodeVersion;
+                            recommendedVersion = iosWorkload.XcodeRecommendedVersion;
+                        }
+                        // Fallback to manifest
+                        else if (_manifest?.Check?.Xcode != null)
+                        {
+                            recommendedVersion = _manifest.Check.Xcode.ExactVersionName;
+                        }
+                        
+                        // Parse version range like "[16.0,)" or recommended version
+                        int minMajorVersion = 15; // Safe default
+                        string displayMinVersion = "15.0";
+                        
+                        if (!string.IsNullOrEmpty(recommendedVersion))
+                        {
+                            if (int.TryParse(recommendedVersion.Split('.')[0], out var recMajor))
                             {
-                                minVersion = manifestMin;
-                                minVersionName = _manifest.Check.Xcode.MinimumVersionName ?? $"{minVersion}.0";
+                                minMajorVersion = recMajor;
+                                displayMinVersion = recommendedVersion;
                             }
-                            
-                            // Check for exact version requirement
-                            if (!string.IsNullOrEmpty(_manifest.Check.Xcode.ExactVersionName))
+                        }
+                        else if (!string.IsNullOrEmpty(requiredVersion))
+                        {
+                            // Parse range like "[16.0,)" -> 16
+                            var rangeMatch = Regex.Match(requiredVersion, @"\[?([\d.]+)");
+                            if (rangeMatch.Success && int.TryParse(rangeMatch.Groups[1].Value.Split('.')[0], out var reqMajor))
                             {
-                                var exactName = _manifest.Check.Xcode.ExactVersionName;
-                                if (versionString != exactName)
-                                {
-                                    return new CheckResult
-                                    {
-                                        Name = "Xcode",
-                                        Status = CheckStatus.Warning,
-                                        Message = $"Version {versionString} found. Version {exactName} is recommended for this .NET MAUI version.",
-                                        Recommendation = $"Update Xcode to version {exactName} for optimal compatibility"
-                                    };
-                                }
+                                minMajorVersion = reqMajor;
+                                displayMinVersion = rangeMatch.Groups[1].Value;
                             }
                         }
 
-                        if (majorVersion >= minVersion)
+                        if (majorVersion >= minMajorVersion)
                         {
+                            var details = verbose ? new Dictionary<string, string>
+                            {
+                                ["Version"] = versionString,
+                                ["Path"] = developerPath,
+                                ["RequiredVersion"] = requiredVersion ?? "N/A",
+                                ["RecommendedVersion"] = recommendedVersion ?? "N/A"
+                            } : null;
+                            
                             return new CheckResult
                             {
                                 Name = "Xcode",
                                 Status = CheckStatus.Ok,
-                                Message = $"Version {versionString} at {developerPath}"
+                                Message = $"Version {versionString} at {developerPath}",
+                                Details = details
                             };
                         }
                         else
@@ -674,8 +752,8 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                             {
                                 Name = "Xcode",
                                 Status = CheckStatus.Error,
-                                Message = $"Version {versionString} detected. Xcode {minVersionName}+ required",
-                                Recommendation = $"Update Xcode to version {minVersionName} or later from the App Store"
+                                Message = $"Version {versionString} detected. Xcode {displayMinVersion}+ required",
+                                Recommendation = $"Update Xcode to version {displayMinVersion} or later from the App Store"
                             };
                         }
                     }
@@ -770,7 +848,7 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
 
                     var info = new WorkloadInfo
                     {
-                        Version = workload.TryGetProperty("version", out var ver) ? ver.GetString() : "unknown",
+                        Version = workload.TryGetProperty("version", out var ver) ? (ver.GetString() ?? "unknown") : "unknown",
                         ManifestVersion = workload.TryGetProperty("manifestVersion", out var manVer) ? manVer.GetString() : null,
                         Description = workload.TryGetProperty("description", out var desc) ? desc.GetString() : null
                     };
@@ -788,7 +866,7 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
 
                     var info = new WorkloadInfo
                     {
-                        Version = workload.TryGetProperty("version", out var ver) ? ver.GetString() : "unknown",
+                        Version = workload.TryGetProperty("version", out var ver) ? (ver.GetString() ?? "unknown") : "unknown",
                         ManifestVersion = workload.TryGetProperty("manifestVersion", out var manVer) ? manVer.GetString() : null,
                         Description = workload.TryGetProperty("description", out var desc) ? desc.GetString() : null
                     };

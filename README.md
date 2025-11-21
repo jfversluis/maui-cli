@@ -59,29 +59,26 @@ Create a token at https://github.com/settings/tokens with `repo` scope.
 
 ### Check Your Environment
 
-Diagnose your .NET MAUI development environment:
+Diagnose your .NET MAUI development environment to ensure all required dependencies are installed and configured correctly. This command reads version requirements directly from the installed .NET SDK's `WorkloadDependencies.json` files, ensuring you have the exact versions needed for your installed workloads.
 
 ```bash
 maui check
 ```
 
-This command will verify:
-- ✅ **.NET SDK** - Version and installation
-- ✅ **MAUI Workloads** - Android, iOS, Windows, Mac Catalyst (platform-dependent)
-- ✅ **Java JDK** - Version 11+ for Android development
-- ✅ **Android SDK** - Presence and location
-- ✅ **Xcode** - Version 15+ on macOS for iOS/Mac development
-- ✅ **Windows SDK** - Version on Windows
+**What it checks:**
+- ✅ **.NET SDK** - Version and runtime information
+- ✅ **.NET MAUI Workloads** - Installed workloads for Android, iOS, macOS, Windows
+- ✅ **Xcode** (macOS only) - Version requirements from iOS workload dependencies
+- ✅ **Java JDK** - Version range requirements from Android workload dependencies (e.g., JDK 17-21)
+- ✅ **Android SDK** - Required packages and build tools
+- ✅ **Windows SDK** (Windows only) - Build tools and version
 
-The command provides:
-- Clear ✓/✗ status for each component
-- Detailed error messages with actionable recommendations
-- Support for both .NET 9 and .NET 10+ workload naming conventions
+The check command uses the `WorkloadDependencies.json` files from your installed SDK manifests as the source of truth for version requirements, ensuring accurate compatibility checks.
 
 **Options:**
+- `--verbose` or `-v`: Show detailed diagnostic information including exact version requirements
 - `--platform <platform>` or `-p <platform>`: Check specific platform (`android`, `ios`, `maccatalyst`, `windows`)
-- `--verbose` or `-v`: Show detailed diagnostic information
-- `--manifest <url>`: Use a custom manifest URL (defaults to official manifest)
+- `--manifest <url>` or `-m <url>`: Use a custom manifest file or URL for version requirements (fallback)
 
 **Examples:**
 
@@ -92,10 +89,13 @@ maui check
 # Check only Android requirements
 maui check --platform android
 
-# Show verbose output with detailed version info
+# Show verbose output with detailed version info and requirements
 maui check --verbose
 
-# Use a custom manifest
+# Check iOS requirements on macOS
+maui check --platform ios
+
+# Use a custom manifest (fallback if SDK dependencies not found)
 maui check --manifest https://example.com/custom-manifest.json
 ```
 

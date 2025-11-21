@@ -15,7 +15,12 @@ public class EnvironmentCheckServiceTests
         _mockManifestService = new Mock<IManifestService>();
         _mockManifestService.Setup(m => m.GetDefaultManifest()).Returns(CreateDefaultManifest());
         _mockManifestService.Setup(m => m.LoadManifestAsync(It.IsAny<string?>())).ReturnsAsync(CreateDefaultManifest());
-        _service = new EnvironmentCheckService(_mockManifestService.Object);
+        
+        var mockWorkloadDependencyService = new Mock<IWorkloadDependencyService>();
+        mockWorkloadDependencyService.Setup(m => m.GetAllWorkloadDependenciesAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new List<WorkloadDependencyInfo>());
+        
+        _service = new EnvironmentCheckService(_mockManifestService.Object, mockWorkloadDependencyService.Object);
     }
 
     private static CheckManifest CreateDefaultManifest()
