@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`maui upgrade` command** - Upgrade .NET MAUI packages to latest versions
+  - Support for stable channel (NuGet.org)
+  - Support for .NET 9 nightly builds from Azure DevOps
+  - Support for .NET 10 nightly builds from Azure DevOps
+  - Automatic target framework detection
+  - Channel recommendation based on current project
+  - NuGet feed configuration with package source mappings
+  - Interactive channel selection or command-line specification
+  - Beautiful table output showing proposed updates
+  - XML-based and CLI-based package update strategies
 - **`maui check` command** - Comprehensive .NET MAUI environment diagnostics
   - Verifies .NET SDK installation and version
   - Checks MAUI workloads for all platforms (Android, iOS, Windows, Mac Catalyst)

@@ -38,6 +38,9 @@ Thank you for your interest in contributing to MAUI CLI! This document provides 
    # Check command
    dotnet run --project src/Maui.Cli/Maui.Cli.csproj -- check
    
+   # Upgrade command
+   dotnet run --project src/Maui.Cli/Maui.Cli.csproj -- upgrade
+   
    # Apply PR command
    dotnet run --project src/Maui.Cli/Maui.Cli.csproj -- apply-pr 12345
    ```

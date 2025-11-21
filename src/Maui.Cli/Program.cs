@@ -32,6 +32,10 @@ builder.Services.AddHttpClient<IGitHubArtifactService, GitHubArtifactService>();
 builder.Services.AddSingleton<INuGetService, NuGetService>();
 builder.Services.AddHttpClient<IManifestService, ManifestService>();
 builder.Services.AddSingleton<IEnvironmentCheckService, EnvironmentCheckService>();
+builder.Services.AddSingleton<IProcessRunner, ProcessRunner>();
+builder.Services.AddSingleton<INuGetConfigService, NuGetConfigService>();
+builder.Services.AddSingleton<IMauiProjectUpdater, MauiProjectUpdater>();
+builder.Services.AddSingleton<IProjectLocator, ProjectLocator>();
 
 var app = builder.Build();
 
@@ -54,8 +58,13 @@ var checkCommand = new CheckCommand(
     app.Services.GetRequiredService<IEnvironmentCheckService>(),
     app.Services.GetRequiredService<IAnsiConsole>());
 
+var upgradeCommand = new UpgradeCommand(
+    app.Services.GetRequiredService<IMauiProjectUpdater>(),
+    app.Services.GetRequiredService<IProjectLocator>());
+
 rootCommand.AddCommand(applyPrCommand);
 rootCommand.AddCommand(checkCommand);
+rootCommand.AddCommand(upgradeCommand);
 
 // Execute
 var exitCode = await rootCommand.InvokeAsync(args);

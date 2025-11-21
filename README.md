@@ -2,6 +2,7 @@
 
 A command-line tool for .NET MAUI developers to:
 - 🩺 **Check your development environment** - Verify all required tools and SDKs are installed
+- 🚀 **Upgrade MAUI packages** - Update to stable or nightly builds (.NET 9/.NET 10)
 - 📦 **Download and apply PR artifacts** - Test pull requests from [dotnet/maui](https://github.com/dotnet/maui) repository
 
 ## Features
@@ -11,6 +12,12 @@ A command-line tool for .NET MAUI developers to:
   - Check MAUI workloads (Android, iOS, Windows, Mac Catalyst)
   - Validate platform-specific requirements (Java JDK, Android SDK, Xcode, Windows SDK)
   - Get actionable recommendations to fix issues
+- 🚀 **Upgrade Command**: Update MAUI packages to latest versions
+  - Upgrade to stable releases from NuGet.org
+  - Switch to .NET 9 or .NET 10 nightly builds
+  - Automatic NuGet feed configuration
+  - Package source mapping setup
+  - Detects current target framework and recommends appropriate channel
 - 🔍 **Discover PR Artifacts**: Automatically finds build artifacts from pull requests
 - 📦 **Download Packages**: Downloads NuGet packages from successful PR builds
 - 🔄 **Apply to Projects**: Updates your MAUI project to use the PR artifacts
@@ -109,6 +116,93 @@ maui check --manifest https://example.com/custom-manifest.json
 └─────────────────────────┴────────┴─────────────────────────────────────────────────────────┘
 
 √ All checks passed! Your environment is ready for .NET MAUI development.
+```
+
+### Upgrade MAUI Packages
+
+Upgrade your .NET MAUI packages to the latest version:
+
+```bash
+maui upgrade
+```
+
+This command will:
+1. Detect your project's current target framework (net9.0 or net10.0)
+2. Present available upgrade channels:
+   - **net9-stable** - Latest stable MAUI releases for .NET 9 from NuGet.org
+   - **net10-stable** - Latest stable MAUI releases for .NET 10 from NuGet.org (with optional TFM upgrade)
+   - **net9-nightly** - .NET 9 nightly builds from Azure DevOps
+   - **net10-nightly** - .NET 10 nightly builds from Azure DevOps
+3. Analyze your Microsoft.Maui.* packages
+4. Show proposed updates in a table
+5. Optionally upgrade target framework when switching to a different .NET version
+6. Update package references and configure NuGet feeds
+
+The tool intelligently filters package versions based on your target framework to ensure compatibility.
+
+**Options:**
+- `--project <path>`: Specify the project file to upgrade (auto-detected if not specified)
+- `--channel <channel>`: Specify channel directly (`net9-stable`, `net10-stable`, `net9-nightly`, or `net10-nightly`)
+
+**Examples:**
+
+```bash
+# Interactive upgrade (prompts for channel selection, recommends based on your TFM)
+maui upgrade
+
+# Upgrade to latest .NET 9 stable (filters to net9-compatible versions)
+maui upgrade --channel net9-stable
+
+# Upgrade to latest .NET 10 stable (will offer to upgrade TFM)
+maui upgrade --channel net10-stable
+
+# Upgrade a specific project to .NET 9 nightly builds
+maui upgrade --project MyApp/MyApp.csproj --channel net9-nightly
+
+# Upgrade to .NET 10 nightly
+maui upgrade --channel net10-nightly
+```
+
+**Sample Output (Upgrading with TFM change):**
+
+```
+   __  __    _    _   _ ___   _   _                        _      
+  |  \/  |  / \  | | | |_ _| | | | |_ __   __ _ _ __ __ _  | |  ___
+  | |\/| | / _ \ | | | || |  | | | | '_ \ / _` | '__/ _` | | | / _ \
+  | |  | |/ ___ \| |_| || |  | |_| | |_) | (_| | | | (_| | |_|  __/
+  |_|  |_/_/   \_\\___/|___| \___/|_.__/ \__, |_|  \__,_| (_) \___|
+                                         |___/
+
+Select a channel to upgrade to:
+  .NET 9 Stable (Latest MAUI for .NET 9) (recommended)
+> .NET 10 Stable (Latest MAUI for .NET 10) + Upgrade TFM
+  .NET 9 Nightly (Azure DevOps)
+  .NET 10 Nightly (Azure DevOps)
+
+Selected channel: .NET 10 Stable (Latest MAUI for .NET 10) + Upgrade TFM
+
+Analyzing project: MyMauiApp.csproj
+Current target framework: net9.0
+Note: Selected channel targets net10.0, but project uses net9.0
+
+Do you want to upgrade the project to net10.0? [y/n] (y): y
+✓ Updated target framework to net10.0
+
+Found 2 MAUI package(s)
+
+┌─────────────────────────┬─────────────────┬─────────────┐
+│ Package                 │ Current Version │ New Version │
+├─────────────────────────┼─────────────────┼─────────────┤
+│ Microsoft.Maui.Controls │ 9.0.120         │ 10.0.40     │
+└─────────────────────────┴─────────────────┴─────────────┘
+
+Apply these updates? [y/n] (y): y
+Updating Microsoft.Maui.Controls...
+
+✓ Upgrade completed successfully
+Target framework updated to: net10.0
+Updated packages:
+  • Microsoft.Maui.Controls 9.0.120 → 10.0.40
 ```
 
 ### Apply PR Artifacts
