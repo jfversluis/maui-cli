@@ -340,16 +340,36 @@ internal sealed class EnvironmentCheckService : IEnvironmentCheckService
                 }
             }
 
-            // Check for the base MAUI workload
-            if (!installedWorkloads.ContainsKey("maui") && 
-                !installedWorkloads.Any(w => w.Key.StartsWith("maui-")))
+            // If NO workloads are installed at all, give a clear message
+            if (installedWorkloads.Count == 0)
             {
                 results.Add(new CheckResult
                 {
                     Name = "MAUI Workloads",
                     Status = CheckStatus.Error,
-                    Message = "No MAUI workloads installed",
-                    Recommendation = "Run: dotnet workload install maui"
+                    Message = "No workloads installed",
+                    Recommendation = "Install the MAUI workload to get started: dotnet workload install maui",
+                    Details = verbose ? new Dictionary<string, string> 
+                    { 
+                        ["Info"] = "The 'maui' workload will install all platform workloads (android, ios, maccatalyst, maui-windows)" 
+                    } : null
+                });
+            }
+            // Check if at least one MAUI-related workload exists (but maybe not all platforms)
+            else if (!installedWorkloads.ContainsKey("maui") && 
+                !installedWorkloads.Any(w => w.Key.StartsWith("maui-") || 
+                    w.Key == "android" || w.Key == "ios" || w.Key == "maccatalyst"))
+            {
+                results.Add(new CheckResult
+                {
+                    Name = "MAUI Workloads",
+                    Status = CheckStatus.Warning,
+                    Message = "No MAUI-related workloads found",
+                    Recommendation = "Install the MAUI workload: dotnet workload install maui",
+                    Details = verbose ? new Dictionary<string, string> 
+                    { 
+                        ["InstalledWorkloads"] = string.Join(", ", installedWorkloads.Keys) 
+                    } : null
                 });
             }
         }
